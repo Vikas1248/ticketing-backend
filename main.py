@@ -73,14 +73,21 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # =========================
 # LOGIN API (DB-based)
 # =========================
+from pydantic import BaseModel
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+
 @app.post("/login")
-def login(username: str, password: str, db: Session = Depends(get_db)):
+def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     user = db.query(models.User).filter(
-        models.User.username == username
+        models.User.username == data.username
     ).first()
 
-    if not user or user.password != password:
+    if not user or user.password != data.password:
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     token = create_access_token({
@@ -90,7 +97,6 @@ def login(username: str, password: str, db: Session = Depends(get_db)):
 
     return {
         "access_token": token,
-        "token_type": "bearer",
         "role": user.role
     }
 
