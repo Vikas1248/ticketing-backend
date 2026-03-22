@@ -8,3 +8,4 @@ class Ticket(Base):
     title = Column(String)
     description = Column(String)
     email = Column(String)
+    status = Column(String, default="Open")  # ✅ NEW
