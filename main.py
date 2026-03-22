@@ -11,6 +11,9 @@ import models
 # =========================
 # APP INIT
 # =========================
+@app.options("/{rest_of_path:path}")
+async def preflight_handler():
+    return {"message": "OK"}
 app = FastAPI()
 
 # =========================
@@ -19,11 +22,11 @@ app = FastAPI()
 app.add_middleware(
     CORSMiddleware,
     allow_origins=[
+        "https://ticketing-frontend-blao.vercel.app",
         "http://localhost:3000",
-        "https://ticketing-frontend-blao.vercel.app"
     ],
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],  # 👈 IMPORTANT
     allow_headers=["*"],
 )
 
