@@ -9,3 +9,12 @@ class Ticket(Base):
     description = Column(String)
     email = Column(String)
     status = Column(String, default="Open")  # ✅ NEW
+
+
+class User(Base):
+    __tablename__ = "users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    username = Column(String, unique=True)
+    password = Column(String)
+    role = Column(String)  # admin / agent

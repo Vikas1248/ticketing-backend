@@ -51,27 +51,38 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
+# ✅ FIXED: return FULL payload
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload.get("sub")
+        return payload   # ✅ contains sub + role
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # =========================
-# LOGIN API
+# LOGIN API (DB-based)
 # =========================
 @app.post("/login")
-def login(username: str, password: str):
-    if username == "admin" and password == "admin123":
-        token = create_access_token({"sub": username})
-        return {
-            "access_token": token,
-            "token_type": "bearer"
-        }
+def login(username: str, password: str, db: Session = Depends(get_db)):
 
-    raise HTTPException(status_code=401, detail="Invalid credentials")
+    user = db.query(models.User).filter(
+        models.User.username == username
+    ).first()
+
+    if not user or user.password != password:
+        raise HTTPException(status_code=401, detail="Invalid credentials")
+
+    token = create_access_token({
+        "sub": user.username,
+        "role": user.role
+    })
+
+    return {
+        "access_token": token,
+        "token_type": "bearer",
+        "role": user.role
+    }
 
 # =========================
 # HEALTH CHECK
@@ -101,12 +112,12 @@ def create_ticket(data: dict, db: Session = Depends(get_db)):
 @app.get("/tickets")
 def get_tickets(
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user)  # 🔐 Protected
+    user: dict = Depends(get_current_user)
 ):
     return db.query(models.Ticket).all()
 
 # =========================
-# UPDATE STATUS (PROTECTED)
+# UPDATE STATUS (ADMIN ONLY)
 # =========================
 ALLOWED_STATUS = ["Open", "In Progress", "Resolved"]
 
@@ -115,8 +126,13 @@ def update_status(
     ticket_id: int,
     status: str,
     db: Session = Depends(get_db),
-    user: str = Depends(get_current_user)  # 🔐 Protected
+    user: dict = Depends(get_current_user)
 ):
+    # 🔐 ROLE CHECK
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    # ✅ Status validation
     if status not in ALLOWED_STATUS:
         raise HTTPException(status_code=400, detail="Invalid status")
 
