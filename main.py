@@ -1,3 +1,5 @@
+
+
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -11,10 +13,12 @@ import models
 # =========================
 # APP INIT
 # =========================
+app = FastAPI()
+
+# ✅ OPTIONS handler (AFTER app is created)
 @app.options("/{rest_of_path:path}")
 async def preflight_handler():
     return {"message": "OK"}
-app = FastAPI()
 
 # =========================
 # CORS CONFIG
@@ -26,7 +30,7 @@ app.add_middleware(
         "http://localhost:3000",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "POST", "PUT", "OPTIONS"],  # 👈 IMPORTANT
+    allow_methods=["GET", "POST", "PUT", "OPTIONS"],
     allow_headers=["*"],
 )
 
