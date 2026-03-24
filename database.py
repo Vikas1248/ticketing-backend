@@ -1,15 +1,23 @@
 from sqlalchemy import create_engine
-from sqlalchemy.orm import sessionmaker, declarative_base
-
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker
 import os
 
-DATABASE_URL = "postgresql://ticketing_db_maej_user:6GXM8XlQT1peTOnRoJgKg9s8enLCXZfk@dpg-d6ve2lsr85hc73bae6og-a.oregon-postgres.render.com:5432/ticketing_db_maej"
-print("DATABASE_URL:", DATABASE_URL)
+# ✅ SET YOUR DATABASE URL HERE
+DATABASE_URL = os.getenv(
+    "DATABASE_URL",
+    "postgresql://ticketing_db_maej_user:6GXM8XlQT1peTOnRoJgKg9s8enLCXZfk@dpg-d6ve2lsr85hc73bae6og-a.oregon-postgres.render.com:5432/ticketing_db_maej"
+)
 
-from sqlalchemy import create_engine
+# ✅ ENGINE (with connection fix)
+engine = create_engine(
+    DATABASE_URL,
+    pool_pre_ping=True,
+    pool_recycle=300
+)
 
-engine = create_engine(DATABASE_URL, connect_args={"sslmode": "require"})
+# ✅ SESSION
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
-SessionLocal = sessionmaker(bind=engine)
-
+# ✅ BASE
 Base = declarative_base()

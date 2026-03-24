@@ -1,11 +1,10 @@
-
-
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
+from pydantic import BaseModel
 
 from database import SessionLocal, engine, Base
 import models
@@ -15,7 +14,6 @@ import models
 # =========================
 app = FastAPI()
 
-# ✅ OPTIONS handler (AFTER app is created)
 @app.options("/{rest_of_path:path}")
 async def preflight_handler():
     return {"message": "OK"}
@@ -61,25 +59,30 @@ def create_access_token(data: dict):
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
 
-# ✅ FIXED: return FULL payload
 def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(security)):
     token = credentials.credentials
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        return payload   # ✅ contains sub + role
+        return payload   # {"sub": username, "role": role}
     except JWTError:
         raise HTTPException(status_code=401, detail="Invalid or expired token")
 
 # =========================
-# LOGIN API (DB-based)
+# SCHEMAS
 # =========================
-from pydantic import BaseModel
-
 class LoginRequest(BaseModel):
     username: str
     password: str
 
+class CommentCreate(BaseModel):
+    message: str
 
+class AssignRequest(BaseModel):
+    agent_id: int
+
+# =========================
+# LOGIN API
+# =========================
 @app.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
@@ -123,14 +126,23 @@ def create_ticket(data: dict, db: Session = Depends(get_db)):
     return ticket
 
 # =========================
-# GET TICKETS (PROTECTED)
+# GET TICKETS (RBAC)
 # =========================
 @app.get("/tickets")
 def get_tickets(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    return db.query(models.Ticket).all()
+    if user["role"] == "admin":
+        return db.query(models.Ticket).all()
+    else:
+        db_user = db.query(models.User).filter(
+            models.User.username == user["sub"]
+        ).first()
+
+        return db.query(models.Ticket).filter(
+            models.Ticket.assigned_to == db_user.id
+        ).all()
 
 # =========================
 # UPDATE STATUS (ADMIN ONLY)
@@ -144,15 +156,15 @@ def update_status(
     db: Session = Depends(get_db),
     user: dict = Depends(get_current_user)
 ):
-    # 🔐 ROLE CHECK
     if user["role"] != "admin":
         raise HTTPException(status_code=403, detail="Not authorized")
 
-    # ✅ Status validation
     if status not in ALLOWED_STATUS:
         raise HTTPException(status_code=400, detail="Invalid status")
 
-    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+    ticket = db.query(models.Ticket).filter(
+        models.Ticket.id == ticket_id
+    ).first()
 
     if not ticket:
         raise HTTPException(status_code=404, detail="Ticket not found")
@@ -162,3 +174,65 @@ def update_status(
     db.refresh(ticket)
 
     return ticket
+
+# =========================
+# ASSIGN TICKET (ADMIN)
+# =========================
+@app.put("/tickets/{ticket_id}/assign")
+def assign_ticket(
+    ticket_id: int,
+    data: AssignRequest,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    if user["role"] != "admin":
+        raise HTTPException(status_code=403, detail="Not authorized")
+
+    ticket = db.query(models.Ticket).filter(
+        models.Ticket.id == ticket_id
+    ).first()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    ticket.assigned_to = data.agent_id
+    db.commit()
+
+    return {"message": "Ticket assigned successfully"}
+
+# =========================
+# COMMENTS
+# =========================
+@app.post("/tickets/{ticket_id}/comments")
+def add_comment(
+    ticket_id: int,
+    comment: CommentCreate,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    db_user = db.query(models.User).filter(
+        models.User.username == user["sub"]
+    ).first()
+
+    new_comment = models.Comment(
+        ticket_id=ticket_id,
+        user_id=db_user.id,
+        message=comment.message
+    )
+
+    db.add(new_comment)
+    db.commit()
+    db.refresh(new_comment)
+
+    return new_comment
+
+
+@app.get("/tickets/{ticket_id}/comments")
+def get_comments(
+    ticket_id: int,
+    db: Session = Depends(get_db),
+    user: dict = Depends(get_current_user)
+):
+    return db.query(models.Comment).filter(
+        models.Comment.ticket_id == ticket_id
+    ).all()
