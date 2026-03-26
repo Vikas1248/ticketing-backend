@@ -5,6 +5,8 @@ from sqlalchemy.orm import Session
 from jose import jwt, JWTError
 from datetime import datetime, timedelta
 from pydantic import BaseModel
+from openai import OpenAI
+import os
 
 from database import SessionLocal, engine, Base
 import models
@@ -102,6 +104,38 @@ def login(data: LoginRequest, db: Session = Depends(get_db)):
         "access_token": token,
         "role": user.role
     }
+
+api_key = os.getenv("OPENAI_API_KEY")
+
+if not api_key:
+    raise Exception("OPENAI_API_KEY not set")
+
+client = OpenAI(api_key=api_key)
+
+@app.post("/tickets/{ticket_id}/ai-reply")
+def generate_ai_reply(ticket_id: int, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    prompt = f"""
+    A user raised a support ticket:
+
+    Title: {ticket.title}
+    Description: {ticket.description}
+
+    Generate a helpful support reply.
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    reply = response.choices[0].message.content
+
+    return {"reply": reply}
 
 # =========================
 # HEALTH CHECK
@@ -236,3 +270,6 @@ def get_comments(
     return db.query(models.Comment).filter(
         models.Comment.ticket_id == ticket_id
     ).all()
+
+
+
