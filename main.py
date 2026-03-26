@@ -144,6 +144,48 @@ def generate_ai_reply(ticket_id: int, db: Session = Depends(get_db)):
 def home():
     return {"message": "Backend running 🚀"}
 
+
+@app.post("/tickets/{ticket_id}/classify")
+def classify_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    ticket = db.query(models.Ticket).filter(models.Ticket.id == ticket_id).first()
+
+    if not ticket:
+        raise HTTPException(status_code=404, detail="Ticket not found")
+
+    prompt = f"""
+    You are an AI support assistant.
+
+    Classify the following ticket into:
+    - Category (Bug, Billing, Feature Request, Other)
+    - Priority (Low, Medium, High)
+
+    Ticket Title: {ticket.title}
+    Ticket Description: {ticket.description}
+
+    Respond ONLY in JSON format like:
+    {{
+      "category": "...",
+      "priority": "..."
+    }}
+    """
+
+    response = client.chat.completions.create(
+        model="gpt-4o-mini",
+        messages=[{"role": "user", "content": prompt}]
+    )
+
+    import json
+
+    try:
+        result = json.loads(response.choices[0].message.content)
+    except:
+        result = {
+            "category": "Other",
+            "priority": "Medium"
+        }
+
+    return result
+
 # =========================
 # CREATE TICKET (PUBLIC)
 # =========================
