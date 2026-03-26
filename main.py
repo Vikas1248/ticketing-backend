@@ -35,22 +35,6 @@ app.add_middleware(
 )
 
 
-
-
-@app.post("/tickets/{ticket_id}/classify")
-def classify_ticket(ticket_id: int, db: Session = Depends(get_db)):
-    ...
-
-    result = json.loads(response.choices[0].message.content)
-
-    ticket.category = result.get("category", "Other")
-    ticket.priority = result.get("priority", "Medium")
-
-    db.commit()
-    db.refresh(ticket)
-
-    return result
-
 # =========================
 # DB SETUP
 # =========================
@@ -200,6 +184,13 @@ def classify_ticket(ticket_id: int, db: Session = Depends(get_db)):
             "category": "Other",
             "priority": "Medium"
         }
+
+    # ✅ SAVE TO DATABASE (THIS WAS MISSING)
+    ticket.category = result.get("category", "Other")
+    ticket.priority = result.get("priority", "Medium")
+
+    db.commit()
+    db.refresh(ticket)
 
     return result
 
