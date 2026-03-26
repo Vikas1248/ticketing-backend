@@ -2,19 +2,6 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
-category = Column(String, default="Other")
-priority = Column(String, default="Medium")
-
-
-result = json.loads(response.choices[0].message.content)
-
-ticket.category = result.get("category", "Other")
-ticket.priority = result.get("priority", "Medium")
-
-db.commit()
-db.refresh(ticket)
-
-return result
 
 
 class Ticket(Base):
@@ -26,13 +13,19 @@ class Ticket(Base):
     email = Column(String)
 
     status = Column(String, default="Open")
-    priority = Column(String, default="Medium")   # ✅ NEW
-    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)  # ✅ NEW
+    priority = Column(String, default="Medium")   # ✅ AI updated
+    category = Column(String, default="Other")    # ✅ AI updated
+
+    assigned_to = Column(Integer, ForeignKey("users.id"), nullable=True)
 
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow)
 
-    comments = relationship("Comment", back_populates="ticket", cascade="all, delete")  # ✅ FIXED
+    comments = relationship(
+        "Comment",
+        back_populates="ticket",
+        cascade="all, delete"
+    )
 
 
 class User(Base):

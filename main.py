@@ -34,6 +34,23 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+
+
+
+@app.post("/tickets/{ticket_id}/classify")
+def classify_ticket(ticket_id: int, db: Session = Depends(get_db)):
+    ...
+
+    result = json.loads(response.choices[0].message.content)
+
+    ticket.category = result.get("category", "Other")
+    ticket.priority = result.get("priority", "Medium")
+
+    db.commit()
+    db.refresh(ticket)
+
+    return result
+
 # =========================
 # DB SETUP
 # =========================
