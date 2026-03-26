@@ -2,6 +2,19 @@ from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
 from database import Base
+category = Column(String, default="Other")
+priority = Column(String, default="Medium")
+
+
+result = json.loads(response.choices[0].message.content)
+
+ticket.category = result.get("category", "Other")
+ticket.priority = result.get("priority", "Medium")
+
+db.commit()
+db.refresh(ticket)
+
+return result
 
 
 class Ticket(Base):
