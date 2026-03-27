@@ -74,7 +74,11 @@ def get_current_user(credentials: HTTPAuthorizationCredentials = Depends(securit
 # SCHEMAS
 # =========================
 class LoginRequest(BaseModel):
-    username: str
+    email: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    email: str
     password: str
 
 class CommentCreate(BaseModel):
@@ -84,13 +88,46 @@ class AssignRequest(BaseModel):
     agent_id: int
 
 # =========================
+# REGISTER API
+# =========================
+@app.post("/register")
+def register(data: RegisterRequest, db: Session = Depends(get_db)):
+    existing_user = db.query(models.User).filter(
+        models.User.username == data.email
+    ).first()
+
+    if existing_user:
+        raise HTTPException(status_code=400, detail="Email already registered")
+
+    new_user = models.User(
+        username=data.email,
+        password=data.password,
+        role="user"
+    )
+    db.add(new_user)
+    db.commit()
+    db.refresh(new_user)
+
+    token = create_access_token({
+        "sub": new_user.username,
+        "role": new_user.role
+    })
+
+    return {
+        "access_token": token,
+        "role": new_user.role,
+        "message": "Registered successfully"
+    }
+
+
+# =========================
 # LOGIN API
 # =========================
 @app.post("/login")
 def login(data: LoginRequest, db: Session = Depends(get_db)):
 
     user = db.query(models.User).filter(
-        models.User.username == data.username
+        models.User.username == data.email
     ).first()
 
     if not user or user.password != data.password:
