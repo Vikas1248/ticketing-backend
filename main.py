@@ -27,6 +27,7 @@ app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "https://ticketing-frontend-blao.vercel.app",
+	"https://ticketing-frontend-theta.vercel.app",
         "http://localhost:3000",
     ],
     allow_credentials=True,
