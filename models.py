@@ -1,4 +1,3 @@
-```python
 from sqlalchemy import Column, Integer, String, ForeignKey, DateTime
 from sqlalchemy.orm import relationship
 from datetime import datetime
@@ -96,4 +95,3 @@ class Comment(Base):
     # Relationships
     ticket = relationship("Ticket", back_populates="comments")
     user = relationship("User", back_populates="comments")
-```
