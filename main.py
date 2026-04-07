@@ -1,4 +1,3 @@
-```python
 from fastapi import FastAPI, Depends, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
@@ -302,4 +301,3 @@ def get_comments(
 @app.get("/")
 def home():
     return {"message": "Backend running 🚀"}
-```
